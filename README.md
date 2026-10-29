@@ -1,132 +1,81 @@
-# Lesson 3 PM: Docker delivery для ML-моделі
+# Customer Churn Prediction — MLflow та Production Readiness
 
-## Мета завдання
+## Короткий опис задачі
 
-Цей репозиторій містить управлінський пакет AI Project Manager для перевірки контейнеризації pretrained-моделі класифікації зображень.  
-Описано вимоги до двох Docker images, критерії приймання, review-інструменти, вимірювання оптимізації, готовність локального
-Compose-стенду та delivery-ризики.
+Це навчальний кейс для аналізу експериментів і моніторингу ML-моделей з позиції менеджера AI/ML-проєкту.  
+Мета проєкту - оцінити експерименти з навчання моделей машинного навчання для прогнозування відтоку клієнтів (*Customer Churn Prediction*) та визначити, чи готова найкраща модель до переходу на наступний етап розгортання.
 
-Це PM-пакет, а не реалізація моделі. Dockerfile, inference-код, модель і фактичні результати тестування має надати й підтвердити AI/ML-команда.  
-Невідомі результати позначені `TBD`.
+Для порівняння розглянуто п’ять запусків моделі в MLflow. Основна увага приділяється якості прогнозування, відтворюваності експериментів, наявності артефактів і готовності процесу до production.
 
-## Короткий контекст
+## Використані матеріали
+- `mlflow_training_runs.png` — таблиця п'яти runs у стилі MLflow.
+- `mlflow_metrics_comparison.png` — порівняння accuracy, loss, recall та F1.
+- `mlflow_rf_depth8_run_details.png` — деталі run `rf-depth8`.
+- `mlflow_rf_depth4_artifacts.png` — artifacts run `rf-depth4`.
+- `mlflow_rf_depth8_artifacts.png` — artifacts run `rf-depth8`.
+- `prometheus_mlflow_accuracy_graph.png` — графік `mlflow_accuracy` у стилі Prometheus.
+- `prometheus_mlflow_loss_graph.png` — графік `mlflow_loss` у стилі Prometheus.
+- `prometheus_mlflow_accuracy_table.png` — таблиця `mlflow_accuracy` у стилі Prometheus.
+- `prometheus_mlflow_loss_table.png` — таблиця `mlflow_loss` у стилі Prometheus.
 
-Команда має підготувати:  
-- `ml-infer-fat:1.0` на базі `python:3.13`;  
-- `ml-infer-slim:1.0` на базі `python:3.13-slim` із multi-stage build.
+Також використано синтетичний набір даних для задачі прогнозування відтоку клієнтів: 600 записів, із яких 450 використано для навчання та 150 — для тестування.
 
-Обидва образи використовують той самий model artifact, preprocessing і test input та повертають еквівалентні top-3 predictions.  
-Slim image має бути оптимізованим за розміром і вмістом без зміни очікуваної поведінки inference.
+## Обраний run-кандидат
 
-## Структура PM-артефактів
+Обраний кандидат - **`rf-depth8`**, Run ID: `cafecb04`.
 
-| Файл | Призначення | Як використовувати |
-| --- | --- | --- |
-| [`project_brief.md`](./project_brief.md) | Бізнесовий і технічний контекст | Узгодити мету, scope, середовища й очікуваний результат |
-| [`ai_ml_team_task.md`](./ai_ml_team_task.md) | Задача для AI/ML-команди | Перенести в Jira, Linear або GitLab Issues і відстежувати deliverables |
-| [`acceptance_criteria.md`](./acceptance_criteria.md) | Критерії приймання та Definition of Done | Використовувати під час QA та приймання |
-| [`docker_image_review.md`](./docker_image_review.md) | Технічний PM-review Docker-рішення | Перевіряти Dockerfile, залежності, inference і відтворюваність |
-| [`optimization_report_review.md`](./optimization_report_review.md) | Таблиця метрик fat vs slim | Заповнити фактичними даними та evidence |
-| [`compose_readiness_checklist.md`](./compose_readiness_checklist.md) | Перевірка локального інтеграційного стенду | Перевірити запуск сервісів і end-to-end prediction |
-| [`risk_register.md`](./risk_register.md) | Ризики, mitigation та owners | Переглядати на статусних зустрічах і перед staging gate |
-| [`stakeholder_summary.md`](./stakeholder_summary.md) | Короткий звіт для нетехнічного стейкхолдера | Комунікувати статус і умови успіху |
-| [`README.md`](./README.md) | Навігація по пакету | Початкова точка для reviewer і команди |
+Основні метрики:
+- Accuracy: `0.8733`
+- Loss: `0.3602`
+- Recall: `0.6471`
+- F1: `0.6984`
+- ROC-AUC: `0.8953`
 
-## Рекомендований порядок роботи
+Для цього запуску збережено `model.joblib` та супровідні артефакти. Водночас recall `0.6471` означає, що модель пропускає частину клієнтів із відтоком, тому потрібне додаткове оцінювання з урахуванням бізнес-вимог.
 
-1.  Прочитати `project_brief.md` і погодити контекст.
-2.  Передати `ai_ml_team_task.md` команді та підтвердити scope.
-3.  Зафіксувати критерії в `acceptance_criteria.md`.
-4.  Проводити перевірку за `docker_image_review.md`.
-5.  Заповнити `optimization_report_review.md` фактичними даними.
-6.  Перевірити локальну інтеграційну готовність за `compose_readiness_checklist.md`.
-7.  Оновити `risk_register.md` на основі evidence.
-8.  Підготувати статус для стейкхолдера в `stakeholder_summary.md`.
+## Ухвалене PM-рішення
 
-## Questions to AI/ML Team
+**Рішення: `Need more experiments`.**
 
-### Model and inference
+`rf-depth8` є перспективним кандидатом, але наявних доказів недостатньо для переходу до staging. Потрібно порівняти моделі з урахуванням бізнес-метрик, перевірити результати на репрезентативних даних і визначити критерії приймання.
 
-1.  Який фінальний model artifact використовується і де він зберігається?
-2.  Які архітектура, версія, джерело pretrained weights та checksum/ID моделі?
-3.  Який input format очікується: тип файлу, колірний формат, розмір і preprocessing?
-4.  Який output format повертається та як представляються top-3 predictions?
-5.  Який test input є еталонним і як перевіряється його незмінність?
-6.  Яке правило порівняння scores погоджено для fat і slim?
+## Виявлені ризики
 
-### Docker and dependencies
+- Вибір моделі лише за accuracy без урахування бізнес-цілей.
+- Недостатній recall для виявлення клієнтів із відтоком.
+- Неповна відтворюваність експериментів.
+- Відсутність артефакту для запуску `rf-depth4`.
+- Не визначено критерії переходу до staging.
+- Не описано rollback-процедуру.
+- Не визначено відповідального за production-рішення.
+- Не описано повний план моніторингу та повторного навчання моделі.
 
-7.  Чи використовує `Dockerfile.fat` базовий образ `python:3.13`?
-8.  Чи використовує `Dockerfile.slim` базовий образ `python:3.13-slim`?
-9.  Чи реалізовано multi-stage build для slim image?
-10. Чи сумісні зафіксовані версії Python, torch, torchvision і Pillow з обома образами?
-11. Чи є `.dockerignore` і чи виключає він кеші, локальні середовища та секрети, не виключаючи потрібні файли?
-12. Чи немає build tools або dev-only залежностей у фінальному slim runtime image?
+## Що потрібно зробити перед production
 
-### Validation and delivery
+- Провести додаткові експерименти та порівняти моделі з урахуванням бізнес-вимог і вартості помилкових прогнозів.
+- Перевірити якість моделі на репрезентативних даних.
+- Погодити з бізнесом цільові значення recall та інших метрик.
+- Зафіксувати версії коду, даних і залежностей для забезпечення відтворюваності експериментів.
+- Визначити критерії приймання для переходу до staging і production.
+- Призначити відповідального за ухвалення рішення.
+- Налаштувати моніторинг якості моделі та data drift після deployment.
+- Підготувати й перевірити rollback-процедуру.
+- Визначити умови повторного навчання моделі (*retraining*).
 
-13. Чи успішно збираються й запускаються обидва образи?
-14. Чи збігається inference для однакового model artifact, preprocessing і test input?
-15. Чи є `report.md` з розміром образів, кількістю шарів, часом збірки/запуску та security findings?
-16. Чи містить README перевірені команди build/run/test?
-17. Чи проскановані образи на відомі вразливості й секрети?
-18. Чи потрібен Docker Compose для локального стенду в межах поточного scope?
-19. Якщо потрібен Compose, чи описані `model-api`, model runtime, Redis, PostgreSQL і monitoring?
-20. Чи гарантовано, що локальний стенд не підключається до production DB, Redis або queue?
-21. Які блокери залишаються перед staging і хто є owner кожного з них?
+## Структура проєкту
 
-### Security and Docker Compose
-
-22. Чи перевірено compose.yaml або docker-compose.yml на наявність hardcoded secrets, токенів, паролів, API keys і production credentials?
-23. Чи використовує Compose змінні середовища та .env замість зберігання секретів безпосередньо у файлі конфігурації? Чи виключено .env із Git?
-24. Чи перевірено, що docker compose config не розкриває секрети у виводі, який зберігається в логах або CI artifacts?
-25. Чи використовують локальні сервіси окремі тестові credentials і чи виключено доступ до production DB, Redis, queue та інших production-ресурсів?
-26. Чи проскановано Docker images і конфігураційні файли на секрети та відомі вразливості? Де зберігаються результати перевірки?
-27. Чи визначено owner і порядок усунення виявлених секретів або вразливостей до переходу на staging?
-
-## Команди перевірки Docker
-
-Виконувати з кореня репозиторію після того, як технічна команда додасть
-відповідні файли:
-
-``` bash
-docker build -f Dockerfile.fat -t ml-infer-fat:1.0 .
-docker build -f Dockerfile.slim -t ml-infer-slim:1.0 .
-docker images | grep ml-infer
-docker history ml-infer-fat:1.0
-docker history ml-infer-slim:1.0
+```text
+lesson-9-pm/
+├── README.md
+├── pm_report.md
+└── screenshots/
+    ├── mlflow_training_runs.png
+    ├── mlflow_metrics_comparison.png
+    ├── mlflow_rf_depth8_run_details.png
+    ├── mlflow_rf_depth4_artifacts.png
+    ├── mlflow_rf_depth8_artifacts.png
+    ├── prometheus_mlflow_accuracy_graph.png
+    ├── prometheus_mlflow_loss_graph.png
+    ├── prometheus_mlflow_accuracy_table.png
+    └── prometheus_mlflow_loss_table.png
 ```
-
-Команди запуску inference залежать від способу передачі input і режиму контейнера.  
-Їх потрібно отримати від команди й внести в README після перевірки.
-
-Якщо Compose входить до scope і файл наявний:
-
-``` bash
-docker compose config
-docker compose up --build
-```
-
-Після старту потрібно виконати документований health check і test prediction.  
-Endpoint і payload мають відповідати реалізації сервісу.
-
-## Evidence для приймання
-
-Перед закриттям задачі зберегти або додати посилання на:  
-- build logs обох образів;  
-- команди запуску та output inference;  
-- порівняння top-3 predictions;  
-- model artifact ID/checksum;  
-- розмір образів і `docker history`;  
-- security scan findings;  
-- заповнений `report.md`;  
-- результати Compose end-to-end test, якщо Compose входить до scope.
-
-## Definition of Done на рівні PM-пакета
-
--   [ ] Усі дев'ять Markdown-файлів створені й заповнені.
--   [ ] Вимоги узгоджені між brief, task та acceptance criteria.
--   [ ] Невиміряні значення позначені `TBD`, для них визначено owner/наступну дію.
--   [ ] У risk register є щонайменше вісім ризиків із likelihood, impact, mitigation та owner.
--   [ ] Stakeholder summary містить 8--12 речень.
--   [ ] Команди й evidence не вигадані: непідтверджені деталі залишаються відкритими питаннями.
